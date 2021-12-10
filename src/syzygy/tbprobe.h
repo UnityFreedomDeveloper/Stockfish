@@ -17,9 +17,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef TBPROBE_H
-#define TBPROBE_H
-
+#ifndef tbprobe_h
+#define tbprobe_h
 #include <ostream>
 
 #include "../search.h"
@@ -76,4 +75,7 @@ inline std::ostream& operator<<(std::ostream& os, const ProbeState v) {
 
 }
 
-#endif
+
+
+
+#endif /* tbprobe_h */

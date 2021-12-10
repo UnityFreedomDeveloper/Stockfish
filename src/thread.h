@@ -18,19 +18,20 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef THREAD_H_INCLUDED
-#define THREAD_H_INCLUDED
+#ifndef thread_h
+#define thread_h
 
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
 #include <thread>
 #include <vector>
+#include <future>
 
 #include "material.h"
 #include "movepick.h"
-#include "pawns.h"
-#include "position.h"
+#include "pawn.h"
+#include "Position.h"
 #include "search.h"
 #include "thread_win32.h"
 
@@ -81,8 +82,11 @@ public:
 struct MainThread : public Thread {
 
   using Thread::Thread;
-
+  std::promise<Move> pMove;
+    
+//  MainThread(size_t t) : Thread(t) { }
   void search() override;
+//    void search(std::promise<Move> &pMove);
   void check_time();
 
   double bestMoveChanges, previousTimeReduction;
@@ -98,6 +102,10 @@ struct MainThread : public Thread {
 struct ThreadPool : public std::vector<Thread*> {
 
   void start_thinking(Position&, StateListPtr&, const Search::LimitsType&, bool = false);
+  void think(Position &pos, const Search::LimitsType& limits, bool ponderMode);
+  void setup(Position& pos, StateListPtr& states);
+  void do_move(Move m, Position &pos);
+  void undo_move(Move m);
   void clear();
   void set(size_t);
 
@@ -121,4 +129,5 @@ private:
 
 extern ThreadPool Threads;
 
-#endif // #ifndef THREAD_H_INCLUDED
+
+#endif /* thread_h */

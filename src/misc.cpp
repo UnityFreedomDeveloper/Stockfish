@@ -18,6 +18,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdio.h>
 #ifdef _WIN32
 #if _WIN32_WINNT < 0x0601
 #undef  _WIN32_WINNT
@@ -236,8 +237,17 @@ int best_group(size_t idx) {
   DWORD returnLength = 0;
   DWORD byteOffset = 0;
 
+  //source : https://stackoverflow.com/a/3074785
   // Early exit if the needed API is not available at runtime
-  HMODULE k32 = GetModuleHandle("Kernel32.dll");
+     // Convert to a wchar_t*
+  const char *orig = "Kernel32.dll";
+  size_t origsize = strlen(orig) + 1;
+  const size_t newsize = 100;
+  size_t convertedChars = 0;
+  wchar_t wcstring[newsize];
+  mbstowcs_s(&convertedChars, wcstring, origsize, orig, _TRUNCATE);
+  wcscat_s(wcstring, L" (wchar_t *)");
+  HMODULE k32 = GetModuleHandle(wcstring);
   auto fun1 = (fun1_t)(void(*)())GetProcAddress(k32, "GetLogicalProcessorInformationEx");
   if (!fun1)
       return -1;
@@ -305,7 +315,14 @@ void bindThisThread(size_t idx) {
       return;
 
   // Early exit if the needed API are not available at runtime
-  HMODULE k32 = GetModuleHandle("Kernel32.dll");
+  const char* orig = "Kernel32.dll";
+  size_t origsize = strlen(orig) + 1;
+  const size_t newsize = 100;
+  size_t convertedChars = 0;
+  wchar_t wcstring[newsize];
+  mbstowcs_s(&convertedChars, wcstring, origsize, orig, _TRUNCATE);
+  wcscat_s(wcstring, L" (wchar_t *)");
+  HMODULE k32 = GetModuleHandle(wcstring);
   auto fun2 = (fun2_t)(void(*)())GetProcAddress(k32, "GetNumaNodeProcessorMaskEx");
   auto fun3 = (fun3_t)(void(*)())GetProcAddress(k32, "SetThreadGroupAffinity");
 

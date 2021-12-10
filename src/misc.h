@@ -18,8 +18,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef MISC_H_INCLUDED
-#define MISC_H_INCLUDED
+#ifndef misc_h
+#define misc_h
 
 #include <cassert>
 #include <chrono>
@@ -111,4 +111,4 @@ namespace WinProcGroup {
   void bindThisThread(size_t idx);
 }
 
-#endif // #ifndef MISC_H_INCLUDED
+#endif /* misc_h */

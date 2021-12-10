@@ -18,6 +18,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdio.h>
 #include <algorithm> // For std::count
 #include <cassert>
 
@@ -29,7 +30,7 @@
 #include "tt.h"
 
 ThreadPool Threads; // Global object
-
+std::promise<Move> PromiseMove;
 
 /// Thread constructor launches the thread and waits until it goes to sleep
 /// in idle_loop(). Note that 'searching' and 'exit' should be alredy set.
@@ -65,7 +66,7 @@ void Thread::clear() {
       for (auto& h : to)
           h->fill(0);
 
-  continuationHistory[NO_PIECE][0]->fill(Search::CounterMovePruneThreshold - 1);
+  continuationHistory[PIECE_NONE][0]->fill(Search::CounterMovePruneThreshold - 1);
 }
 
 /// Thread::start_searching() wakes up the thread that will start the search
@@ -122,6 +123,7 @@ void Thread::idle_loop() {
 /// Upon resizing, threads are recreated to allow for binding if necessary.
 
 void ThreadPool::set(size_t requested) {
+//    void ThreadPool::set(size_t requested, std::promise<Move> &m) {
 
   if (size() > 0) { // destroy any existing thread(s)
       main()->wait_for_search_finished();
@@ -157,47 +159,103 @@ void ThreadPool::clear() {
 /// ThreadPool::start_thinking() wakes up main thread waiting in idle_loop() and
 /// returns immediately. Main thread will wake up other threads and start the search.
 
-void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
-                                const Search::LimitsType& limits, bool ponderMode) {
+//void ThreadPool::start_thinking(Position& pos, StateListPtr& states,
+//                                const Search::LimitsType& limits, bool ponderMode) {
+//
+//  main()->wait_for_search_finished();
+//
+//  stopOnPonderhit = stop = false;
+//  ponder = ponderMode;
+//  Search::Limits = limits;
+//  Search::RootMoves rootMoves;
+//
+//  for (const auto& m : MoveList<LEGAL>(pos))
+//      if (   limits.searchmoves.empty()
+//          || std::count(limits.searchmoves.begin(), limits.searchmoves.end(), m))
+//          rootMoves.emplace_back(m);
+//
+//  if (!rootMoves.empty())
+//      Tablebases::rank_root_moves(pos, rootMoves);
+//
+//  // After ownership transfer 'states' becomes empty, so if we stop the search
+//  // and call 'go' again without setting a new position states.get() == NULL.
+//  assert(states.get() || setupStates.get());
+//
+//  if (states.get())
+//      setupStates = std::move(states); // Ownership transfer, states is now empty
+//
+//  // We use Position::set() to set root position across threads. But there are
+//  // some StateInfo fields (previous, pliesFromNull, capturedPiece) that cannot
+//  // be deduced from a fen string, so set() clears them and to not lose the info
+//  // we need to backup and later restore setupStates->back(). Note that setupStates
+//  // is shared by threads but is accessed in read-only mode.
+//  StateInfo tmp = setupStates->back();
+//
+//  for (Thread* th : *this)
+//  {
+//      th->nodes = th->tbHits = th->nmpMinPly = 0;
+//      th->rootDepth = th->completedDepth = DEPTH_ZERO;
+//      th->rootMoves = rootMoves;
+//      th->rootPos.set(pos.fen(), pos.is_chess960(), &setupStates->back(), th);
+//  }
+//
+//  setupStates->back() = tmp;
+//
+//  main()->start_searching();
+//}
 
-  main()->wait_for_search_finished();
+void ThreadPool::think(Position &pos, const Search::LimitsType& limits, bool ponderMode) {
+    main()->wait_for_search_finished();
 
-  stopOnPonderhit = stop = false;
-  ponder = ponderMode;
-  Search::Limits = limits;
-  Search::RootMoves rootMoves;
+    stopOnPonderhit = stop = false;
+    ponder = ponderMode;
+    Search::Limits = limits;
+    Search::RootMoves rootMoves;
 
-  for (const auto& m : MoveList<LEGAL>(pos))
-      if (   limits.searchmoves.empty()
-          || std::count(limits.searchmoves.begin(), limits.searchmoves.end(), m))
-          rootMoves.emplace_back(m);
+    for (const auto& m : MoveList<LEGAL>(pos))
+        if (   limits.searchmoves.empty()
+            || std::count(limits.searchmoves.begin(), limits.searchmoves.end(), m))
+            rootMoves.emplace_back(m);
 
-  if (!rootMoves.empty())
-      Tablebases::rank_root_moves(pos, rootMoves);
+    if (!rootMoves.empty())
+        Tablebases::rank_root_moves(pos, rootMoves);
 
-  // After ownership transfer 'states' becomes empty, so if we stop the search
-  // and call 'go' again without setting a new position states.get() == NULL.
-  assert(states.get() || setupStates.get());
+    for (Thread* th : *this)
+    {
+        th->nodes = th->tbHits = th->nmpMinPly = 0;
+        th->rootDepth = th->completedDepth = DEPTH_ZERO;
+        th->rootMoves = rootMoves;
+    }
+    
+    main()->start_searching();
+}
 
-  if (states.get())
-      setupStates = std::move(states); // Ownership transfer, states is now empty
+void ThreadPool::do_move(Move m, Position &pos) {
+    for (Thread* th: *this) {
+        StateInfo st;
+        th->rootPos.do_move(m, st);
+        th->rootPos.ref_state(pos.sInfo());
+    }
+}
 
-  // We use Position::set() to set root position across threads. But there are
-  // some StateInfo fields (previous, pliesFromNull, capturedPiece) that cannot
-  // be deduced from a fen string, so set() clears them and to not lose the info
-  // we need to backup and later restore setupStates->back(). Note that setupStates
-  // is shared by threads but is accessed in read-only mode.
-  StateInfo tmp = setupStates->back();
+void ThreadPool::undo_move(Move m) {
+    for (Thread* th: *this) {
+        th->rootPos.undo_move(m);
+    }
+}
 
-  for (Thread* th : *this)
-  {
-      th->nodes = th->tbHits = th->nmpMinPly = 0;
-      th->rootDepth = th->completedDepth = DEPTH_ZERO;
-      th->rootMoves = rootMoves;
-      th->rootPos.set(pos.fen(), pos.is_chess960(), &setupStates->back(), th);
-  }
+void ThreadPool::setup(Position& pos, StateListPtr& states) {
+    assert(states.get() || setupStates.get());
 
-  setupStates->back() = tmp;
+    if (states.get())
+        setupStates = std::move(states);
 
-  main()->start_searching();
+    StateInfo tmp = setupStates->back();
+
+    for (Thread* th : *this)
+    {
+        th->rootPos.set(pos.fen(), pos.is_chess960(), &setupStates->back(), th);
+    }
+
+    setupStates->back() = tmp;
 }

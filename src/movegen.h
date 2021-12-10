@@ -18,8 +18,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef MOVEGEN_H_INCLUDED
-#define MOVEGEN_H_INCLUDED
+#ifndef movegen_h
+#define movegen_h
 
 #include <algorithm>
 
@@ -55,6 +55,10 @@ inline bool operator<(const ExtMove& f, const ExtMove& s) {
 template<GenType>
 ExtMove* generate(const Position& pos, ExtMove* moveList);
 
+Move make_castling_move(Color Us, CastlingSide Cs, const Position& pos);
+Move make_enpassant_move(Square from, const Position& pos);
+Move make_promotion_move(Square from, Square to);
+
 /// The MoveList struct is a simple wrapper around generate(). It sometimes comes
 /// in handy to use this class instead of the low level generate() function.
 template<GenType T>
@@ -72,4 +76,4 @@ private:
   ExtMove moveList[MAX_MOVES], *last;
 };
 
-#endif // #ifndef MOVEGEN_H_INCLUDED
+#endif /* movegen_h */

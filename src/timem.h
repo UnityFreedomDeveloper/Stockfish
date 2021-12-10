@@ -18,8 +18,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef TIMEMAN_H_INCLUDED
-#define TIMEMAN_H_INCLUDED
+#ifndef timem_h
+#define timem_h
 
 #include "misc.h"
 #include "search.h"
@@ -46,4 +46,4 @@ private:
 
 extern TimeManagement Time;
 
-#endif // #ifndef TIMEMAN_H_INCLUDED
+#endif /* timem_h */

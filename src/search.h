@@ -18,8 +18,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef SEARCH_H_INCLUDED
-#define SEARCH_H_INCLUDED
+#ifndef search_h
+#define search_h
 
 #include <vector>
 
@@ -93,7 +93,7 @@ struct LimitsType {
   }
 
   std::vector<Move> searchmoves;
-  TimePoint time[COLOR_NB], inc[COLOR_NB], npmsec, movetime, startTime;
+  TimePoint time[COLOR_ALL], inc[COLOR_ALL], npmsec, movetime, startTime;
   int movestogo, depth, mate, perft, infinite;
   int64_t nodes;
 };
@@ -105,4 +105,5 @@ void clear();
 
 } // namespace Search
 
-#endif // #ifndef SEARCH_H_INCLUDED
+
+#endif /* search_h */

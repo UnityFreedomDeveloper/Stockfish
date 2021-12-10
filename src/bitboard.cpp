@@ -18,30 +18,29 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <algorithm>
-
-#include "bitboard.h"
+#include <stdio.h>
+#include "Bitboard.h"
 #include "misc.h"
 
 uint8_t PopCnt16[1 << 16];
-int SquareDistance[SQUARE_NB][SQUARE_NB];
+int SquareDistance[SQUARE_ALL][SQUARE_ALL];
 
-Bitboard SquareBB[SQUARE_NB];
-Bitboard FileBB[FILE_NB];
-Bitboard RankBB[RANK_NB];
-Bitboard AdjacentFilesBB[FILE_NB];
-Bitboard ForwardRanksBB[COLOR_NB][RANK_NB];
-Bitboard BetweenBB[SQUARE_NB][SQUARE_NB];
-Bitboard LineBB[SQUARE_NB][SQUARE_NB];
-Bitboard DistanceRingBB[SQUARE_NB][8];
-Bitboard ForwardFileBB[COLOR_NB][SQUARE_NB];
-Bitboard PassedPawnMask[COLOR_NB][SQUARE_NB];
-Bitboard PawnAttackSpan[COLOR_NB][SQUARE_NB];
-Bitboard PseudoAttacks[PIECE_TYPE_NB][SQUARE_NB];
-Bitboard PawnAttacks[COLOR_NB][SQUARE_NB];
+Bitboard SquareBB[SQUARE_ALL];
+Bitboard FileBB[FILE_ALL];
+Bitboard RankBB[RANK_ALL];
+Bitboard AdjacentFilesBB[FILE_ALL];
+Bitboard ForwardRanksBB[COLOR_ALL][RANK_ALL];
+Bitboard BetweenBB[SQUARE_ALL][SQUARE_ALL];
+Bitboard LineBB[SQUARE_ALL][SQUARE_ALL];
+Bitboard DistanceRingBB[SQUARE_ALL][8];
+Bitboard ForwardFileBB[COLOR_ALL][SQUARE_ALL];
+Bitboard PassedPawnMask[COLOR_ALL][SQUARE_ALL];
+Bitboard PawnAttackSpan[COLOR_ALL][SQUARE_ALL];
+Bitboard PseudoAttacks[PIECE_TYPE_ALL][SQUARE_ALL];
+Bitboard PawnAttacks[COLOR_ALL][SQUARE_ALL];
 
-Magic RookMagics[SQUARE_NB];
-Magic BishopMagics[SQUARE_NB];
+Magic RookMagics[SQUARE_ALL];
+Magic BishopMagics[SQUARE_ALL];
 
 namespace {
 
@@ -190,7 +189,7 @@ namespace {
   void init_magics(Bitboard table[], Magic magics[], Direction directions[]) {
 
     // Optimal PRNG seeds to pick the correct magics in the shortest time
-    int seeds[][RANK_NB] = { { 8977, 44560, 54343, 38998,  5731, 95205, 104912, 17020 },
+    int seeds[][RANK_ALL] = { { 8977, 44560, 54343, 38998,  5731, 95205, 104912, 17020 },
                              {  728, 10316, 55013, 32803, 12281, 15100,  16645,   255 } };
 
     Bitboard occupancy[4096], reference[4096], edges, b;

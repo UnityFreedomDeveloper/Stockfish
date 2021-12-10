@@ -18,13 +18,14 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef UCI_H_INCLUDED
-#define UCI_H_INCLUDED
+#ifndef uci_h
+#define uci_h
 
 #include <map>
 #include <string>
 
 #include "types.h"
+#include "Position.h"
 
 class Position;
 
@@ -67,16 +68,36 @@ private:
   OnChange on_change;
 };
 
-void init(OptionsMap&);
-void loop(int argc, char* argv[]);
+void init(OptionsMap&, double skill, double time);
+void init(Position &pos, StateListPtr &states);
+void init(Position &pos, StateListPtr &states, const char* customFEN);
+
+Move think(Position& pos, std::deque<Move> &moveHistory);
+void undo_move(Position& pos, std::deque<Move> &moveHistory);
+void new_game(Position &pos, StateListPtr &states, std::deque<Move> &moveHistory);
+void set_position(Position& pos, StateListPtr& states, std::string fen);
+void pos_possible_moves(const Position &pos, int &size, int *mPointer);
+void release_resources(Position &pos);
 std::string value(Value v);
 std::string square(Square s);
 std::string move(Move m, bool chess960);
 std::string pv(const Position& pos, Depth depth, Value alpha, Value beta);
 Move to_move(const Position& pos, std::string& str);
+bool is_game_draw(Position &pos);
 
+//call from swift
+void init_move(int from, int to, Position &pos, std::deque<Move> &moveHistory);
+void castle_move(int castleSide, Position &pos, std::deque<Move> &moveHistory);
+void enpassant_move(int from, Position &pos, std::deque<Move> &moveHistory);
+void promotion_move(int from, int to, Position &pos, std::deque<Move> &moveHistory);
+
+//Testing purpose
+int fivety_move_rule_count(Position &pos);
+bool all_possible_moves_match(Position &pos, const int* from, const int* to, const int count);
+bool all_possible_moves_match_inverse(Position &pos, const int* from, const int* to, const int count);
 } // namespace UCI
 
 extern UCI::OptionsMap Options;
 
-#endif // #ifndef UCI_H_INCLUDED
+
+#endif /* uci_h */

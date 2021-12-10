@@ -18,12 +18,12 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef MATERIAL_H_INCLUDED
-#define MATERIAL_H_INCLUDED
+#ifndef material_h
+#define material_h
 
 #include "endgame.h"
 #include "misc.h"
-#include "position.h"
+#include "Position.h"
 #include "types.h"
 
 namespace Material {
@@ -57,10 +57,10 @@ struct Entry {
 
   Key key;
   const EndgameBase<Value>* evaluationFunction;
-  const EndgameBase<ScaleFactor>* scalingFunction[COLOR_NB]; // Could be one for each
+  const EndgameBase<ScaleFactor>* scalingFunction[COLOR_ALL]; // Could be one for each
                                                              // side (e.g. KPKP, KBPsKs)
   int16_t value;
-  uint8_t factor[COLOR_NB];
+  uint8_t factor[COLOR_ALL];
   Phase gamePhase;
 };
 
@@ -70,4 +70,5 @@ Entry* probe(const Position& pos);
 
 } // namespace Material
 
-#endif // #ifndef MATERIAL_H_INCLUDED
+
+#endif /* material_h */

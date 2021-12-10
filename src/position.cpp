@@ -18,17 +18,20 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdio.h>
+
 #include <algorithm>
 #include <cassert>
 #include <cstddef> // For offsetof()
 #include <cstring> // For std::memset, std::memcmp
 #include <iomanip>
 #include <sstream>
+#include <iostream>
 
-#include "bitboard.h"
+#include "Bitboard.h"
 #include "misc.h"
 #include "movegen.h"
-#include "position.h"
+#include "Position.h"
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
@@ -38,9 +41,9 @@ using std::string;
 
 namespace Zobrist {
 
-  Key psq[PIECE_NB][SQUARE_NB];
-  Key enpassant[FILE_NB];
-  Key castling[CASTLING_RIGHT_NB];
+  Key psq[PIECE_ALL][SQUARE_ALL];
+  Key enpassant[FILE_ALL];
+  Key castling[CASTLING_RIGHT_ALL];
   Key side, noPawns;
 }
 
@@ -110,7 +113,7 @@ std::ostream& operator<<(std::ostream& os, const Position& pos) {
       os << UCI::square(pop_lsb(&b)) << " ";
 
   if (    int(Tablebases::MaxCardinality) >= popcount(pos.pieces())
-      && !pos.can_castle(ANY_CASTLING))
+      && !pos.can_castle(CASTLING_ANY))
   {
       StateInfo st;
       Position p;
@@ -153,7 +156,7 @@ void Position::init() {
   for (File f = FILE_A; f <= FILE_H; ++f)
       Zobrist::enpassant[f] = rng.rand<Key>();
 
-  for (int cr = NO_CASTLING; cr <= ANY_CASTLING; ++cr)
+  for (int cr = CASTLING_NONE; cr <= CASTLING_ANY; ++cr)
   {
       Zobrist::castling[cr] = 0;
       Bitboard b = cr;
@@ -557,7 +560,7 @@ bool Position::legal(Move m) const {
       assert(to == ep_square());
       assert(moved_piece(m) == make_piece(us, PAWN));
       assert(piece_on(capsq) == make_piece(~us, PAWN));
-      assert(piece_on(to) == NO_PIECE);
+      assert(piece_on(to) == PIECE_NONE);
 
       return   !(attacks_bb<  ROOK>(ksq, occupied) & pieces(~us, QUEEN, ROOK))
             && !(attacks_bb<BISHOP>(ksq, occupied) & pieces(~us, QUEEN, BISHOP));
@@ -592,12 +595,12 @@ bool Position::pseudo_legal(const Move m) const {
       return MoveList<LEGAL>(*this).contains(m);
 
   // Is not a promotion, so promotion piece must be empty
-  if (promotion_type(m) - KNIGHT != NO_PIECE_TYPE)
+  if (promotion_type(m) - KNIGHT != PIECE_TYPE_NONE)
       return false;
 
   // If the 'from' square is not occupied by a piece belonging to the side to
   // move, the move is obviously not legal.
-  if (pc == NO_PIECE || color_of(pc) != us)
+  if (pc == PIECE_NONE || color_of(pc) != us)
       return false;
 
   // The destination square cannot be occupied by a friendly piece
@@ -713,8 +716,11 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
   assert(is_ok(m));
   assert(&newSt != st);
 
-  thisThread->nodes.fetch_add(1, std::memory_order_relaxed);
+//    printf("inside do_move");
+//  thisThread->nodes.fetch_add(1, std::memory_order_relaxed);
+//    printf("thisthread->nodes fetch add");
   Key k = st->key ^ Zobrist::side;
+//    printf("st->key");
 
   // Copy some fields of the old state to our new StateInfo object except the
   // ones which are going to be recalculated from scratch anyway and then switch
@@ -737,7 +743,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
   Piece captured = type_of(m) == ENPASSANT ? make_piece(them, PAWN) : piece_on(to);
 
   assert(color_of(pc) == us);
-  assert(captured == NO_PIECE || color_of(captured) == (type_of(m) != CASTLING ? them : us));
+  assert(captured == PIECE_NONE || color_of(captured) == (type_of(m) != CASTLING ? them : us));
   assert(type_of(captured) != KING);
 
   if (type_of(m) == CASTLING)
@@ -749,7 +755,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
       do_castling<true>(us, from, to, rfrom, rto);
 
       k ^= Zobrist::psq[captured][rfrom] ^ Zobrist::psq[captured][rto];
-      captured = NO_PIECE;
+      captured = PIECE_NONE;
   }
 
   if (captured)
@@ -767,10 +773,10 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
               assert(pc == make_piece(us, PAWN));
               assert(to == st->epSquare);
               assert(relative_rank(us, to) == RANK_6);
-              assert(piece_on(to) == NO_PIECE);
+              assert(piece_on(to) == PIECE_NONE);
               assert(piece_on(capsq) == make_piece(them, PAWN));
 
-              board[capsq] = NO_PIECE; // Not done by remove_piece()
+              board[capsq] = PIECE_NONE; // Not done by remove_piece()
           }
 
           st->pawnKey ^= Zobrist::psq[captured][capsq];
@@ -784,7 +790,8 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
       // Update material hash key and prefetch access to materialTable
       k ^= Zobrist::psq[captured][capsq];
       st->materialKey ^= Zobrist::psq[captured][pieceCount[captured]];
-      prefetch(thisThread->materialTable[st->materialKey]);
+//      std::cout << "prefetch" << std::endl;
+//      prefetch(thisThread->materialTable[st->materialKey]);
 
       // Reset rule 50 counter
       st->rule50 = 0;
@@ -845,8 +852,10 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
 
       // Update pawn hash key and prefetch access to pawnsTable
       st->pawnKey ^= Zobrist::psq[pc][from] ^ Zobrist::psq[pc][to];
-      prefetch2(thisThread->pawnsTable[st->pawnKey]);
-
+//      std::cout << "prefetch2" << std::endl;
+//      prefetch2(thisThread->pawnsTable[st->pawnKey]);
+//      std::cout << "prefetch2 end" << std::endl;
+      
       // Reset rule 50 draw counter
       st->rule50 = 0;
   }
@@ -872,7 +881,7 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck) {
 /// Position::undo_move() unmakes a move. When it returns, the position should
 /// be restored to exactly the same state as before the move was made.
 
-void Position::undo_move(Move m) {
+void Position::undo_move(Move m, Memory release) {
 
   assert(is_ok(m));
 
@@ -917,7 +926,7 @@ void Position::undo_move(Move m) {
               assert(type_of(pc) == PAWN);
               assert(to == st->previous->epSquare);
               assert(relative_rank(us, to) == RANK_6);
-              assert(piece_on(capsq) == NO_PIECE);
+              assert(piece_on(capsq) == PIECE_NONE);
               assert(st->capturedPiece == make_piece(~us, PAWN));
           }
 
@@ -926,7 +935,13 @@ void Position::undo_move(Move m) {
   }
 
   // Finally point our state pointer back to the previous state
-  st = st->previous;
+    if (release) {
+        StateInfo *stc = st;
+        st = st->previous;
+        delete stc;
+    } else {
+        st = st->previous;
+    }
   --gamePly;
 
   assert(pos_is_ok());
@@ -946,7 +961,7 @@ void Position::do_castling(Color us, Square from, Square& to, Square& rfrom, Squ
   // Remove both pieces first since squares could overlap in Chess960
   remove_piece(make_piece(us, KING), Do ? from : to);
   remove_piece(make_piece(us, ROOK), Do ? rfrom : rto);
-  board[Do ? from : to] = board[Do ? rfrom : rto] = NO_PIECE; // Since remove_piece doesn't do it for us
+  board[Do ? from : to] = board[Do ? rfrom : rto] = PIECE_NONE; // Since remove_piece doesn't do it for us
   put_piece(make_piece(us, KING), Do ? to : from);
   put_piece(make_piece(us, ROOK), Do ? rto : rfrom);
 }
@@ -1289,7 +1304,7 @@ bool Position::pos_is_ok() const {
   for (Piece pc : Pieces)
   {
       if (   pieceCount[pc] != popcount(pieces(color_of(pc), type_of(pc)))
-          || pieceCount[pc] != std::count(board, board + SQUARE_NB, pc))
+          || pieceCount[pc] != std::count(board, board + SQUARE_ALL, pc))
           assert(0 && "pos_is_ok: Pieces");
 
       for (int i = 0; i < pieceCount[pc]; ++i)
@@ -1311,3 +1326,60 @@ bool Position::pos_is_ok() const {
 
   return true;
 }
+
+void Position::release() {
+    StateInfo* stc = st;
+    
+    int i = 0, end = stc->pliesFromNull;
+    if (end <= i)
+        return;
+
+    do {
+        StateInfo* previous = stc->previous;
+        delete stc;
+        stc = previous;
+        
+        i++;
+    } while (i < end);
+}
+
+StateInfo* Position::sInfo() {
+    return st;
+}
+
+void Position::ref_state(StateInfo *si) {
+    st = si;
+}
+
+bool Position::three_fold_repetition() const {
+    StateInfo* stc = st;
+    while (true)
+    {
+        int i = 4, end = std::min(stc->rule50, stc->pliesFromNull), folds = 0;
+
+        if (end < i)
+        {
+            if (folds >= 2) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        
+        StateInfo* stp = stc->previous->previous;
+
+        do {
+            stp = stp->previous->previous;
+
+            if (stp->key == stc->key)
+                folds++;
+
+            i += 2;
+        } while (i <= end);
+
+        stc = stc->previous;
+    }
+    
+    return false;
+}
+

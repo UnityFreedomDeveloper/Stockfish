@@ -18,12 +18,14 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdio.h>
+
 #include <algorithm>
 #include <cassert>
 
-#include "bitboard.h"
-#include "pawns.h"
-#include "position.h"
+#include "Bitboard.h"
+#include "pawn.h"
+#include "Position.h"
 #include "thread.h"
 
 namespace {
@@ -37,11 +39,11 @@ namespace {
   constexpr Score Isolated = S( 5, 15);
 
   // Connected pawn bonus by opposed, phalanx, #support and rank
-  Score Connected[2][2][3][RANK_NB];
+  Score Connected[2][2][3][RANK_ALL];
 
   // Strength of pawn shelter for our king by [distance from edge][rank].
   // RANK_1 = 0 is used for files where we have no pawn, or pawn is behind our king.
-  constexpr Value ShelterStrength[int(FILE_NB) / 2][RANK_NB] = {
+  constexpr Value ShelterStrength[int(FILE_ALL) / 2][RANK_ALL] = {
     { V( -6), V( 81), V( 93), V( 58), V( 39), V( 18), V(  25) },
     { V(-43), V( 61), V( 35), V(-49), V(-29), V(-11), V( -63) },
     { V(-10), V( 75), V( 23), V( -2), V( 32), V(  3), V( -45) },
@@ -51,7 +53,7 @@ namespace {
   // Danger of enemy pawns moving toward our king by [distance from edge][rank].
   // RANK_1 = 0 is used for files where the enemy has no pawn, or their pawn
   // is behind our king.
-  constexpr Value UnblockedStorm[int(FILE_NB) / 2][RANK_NB] = {
+  constexpr Value UnblockedStorm[int(FILE_ALL) / 2][RANK_ALL] = {
     { V( 89), V(107), V(123), V(93), V(57), V( 45), V( 51) },
     { V( 44), V(-18), V(123), V(46), V(39), V( -7), V( 23) },
     { V(  4), V( 52), V(162), V(37), V( 7), V(-14), V( -2) },
@@ -154,7 +156,7 @@ namespace Pawns {
 
 void init() {
 
-  static constexpr int Seed[RANK_NB] = { 0, 13, 24, 18, 65, 100, 175, 330 };
+  static constexpr int Seed[RANK_ALL] = { 0, 13, 24, 18, 65, 100, 175, 330 };
 
   for (int opposed = 0; opposed <= 1; ++opposed)
       for (int phalanx = 0; phalanx <= 1; ++phalanx)

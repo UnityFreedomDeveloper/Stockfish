@@ -18,12 +18,13 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdio.h>
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
 
 #include "search.h"
-#include "timeman.h"
+#include "timem.h"
 #include "uci.h"
 
 TimeManagement Time; // Our global time management object

@@ -18,12 +18,14 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdio.h>
+
 #include <algorithm>
 #include <cassert>
 #include <numeric>
 #include <vector>
 
-#include "bitboard.h"
+#include "Bitboard.h"
 #include "types.h"
 
 namespace {
@@ -66,7 +68,7 @@ namespace {
     template<Color Us> Result classify(const std::vector<KPKPosition>& db);
 
     Color us;
-    Square ksq[COLOR_NB], psq;
+    Square ksq[COLOR_ALL], psq;
     Result result;
   };
 

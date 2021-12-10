@@ -18,36 +18,11 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <iostream>
-
-#include "bitboard.h"
-#include "position.h"
-#include "search.h"
-#include "thread.h"
-#include "tt.h"
-#include "uci.h"
-#include "syzygy/tbprobe.h"
+#ifndef psqt_h
+#define psqt_h
 
 namespace PSQT {
-  void init();
+    void init();
 }
 
-int main(int argc, char* argv[]) {
-
-  std::cout << engine_info() << std::endl;
-
-  UCI::init(Options);
-  PSQT::init();
-  Bitboards::init();
-  Position::init();
-  Bitbases::init();
-  Search::init();
-  Pawns::init();
-  Threads.set(Options["Threads"]);
-  Search::clear(); // After threads are up
-
-  UCI::loop(argc, argv);
-
-  Threads.set(0);
-  return 0;
-}
+#endif /* psqt_h */

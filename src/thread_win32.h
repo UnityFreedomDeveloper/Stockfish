@@ -18,8 +18,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef THREAD_WIN32_H_INCLUDED
-#define THREAD_WIN32_H_INCLUDED
+#ifndef thread_win32_h
+#define thread_win32_h
 
 /// STL thread library used by mingw and gcc when cross compiling for Windows
 /// relies on libwinpthread. Currently libwinpthread implements mutexes directly
@@ -67,4 +67,4 @@ typedef std::condition_variable ConditionVariable;
 
 #endif
 
-#endif // #ifndef THREAD_WIN32_H_INCLUDED
+#endif /* thread_win32_h */

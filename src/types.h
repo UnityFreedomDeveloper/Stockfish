@@ -18,59 +18,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef TYPES_H_INCLUDED
-#define TYPES_H_INCLUDED
-
-/// When compiling with provided Makefile (e.g. for Linux and OSX), configuration
-/// is done automatically. To get started type 'make help'.
-///
-/// When Makefile is not used (e.g. with Microsoft Visual Studio) some switches
-/// need to be set manually:
-///
-/// -DNDEBUG      | Disable debugging mode. Always use this for release.
-///
-/// -DNO_PREFETCH | Disable use of prefetch asm-instruction. You may need this to
-///               | run on some very old machines.
-///
-/// -DUSE_POPCNT  | Add runtime support for use of popcnt asm-instruction. Works
-///               | only in 64-bit mode and requires hardware with popcnt support.
-///
-/// -DUSE_PEXT    | Add runtime support for use of pext asm-instruction. Works
-///               | only in 64-bit mode and requires hardware with pext support.
-
-#include <cassert>
-#include <cctype>
-#include <climits>
-#include <cstdint>
-#include <cstdlib>
-
-#if defined(_MSC_VER)
-// Disable some silly and noisy warning from MSVC compiler
-#pragma warning(disable: 4127) // Conditional expression is constant
-#pragma warning(disable: 4146) // Unary minus operator applied to unsigned type
-#pragma warning(disable: 4800) // Forcing value to bool 'true' or 'false'
-#endif
-
-/// Predefined macros hell:
-///
-/// __GNUC__           Compiler is gcc, Clang or Intel on Linux
-/// __INTEL_COMPILER   Compiler is Intel
-/// _MSC_VER           Compiler is MSVC or Intel on Windows
-/// _WIN32             Building on Windows (any)
-/// _WIN64             Building on Windows 64 bit
-
-#if defined(_WIN64) && defined(_MSC_VER) // No Makefile used
-#  include <intrin.h> // Microsoft header for _BitScanForward64()
-#  define IS_64BIT
-#endif
-
-#if defined(USE_POPCNT) && (defined(__INTEL_COMPILER) || defined(_MSC_VER))
-#  include <nmmintrin.h> // Intel and Microsoft header for _mm_popcnt_u64()
-#endif
-
-#if !defined(NO_PREFETCH) && (defined(__INTEL_COMPILER) || defined(_MSC_VER))
-#  include <xmmintrin.h> // Intel and Microsoft header for _mm_prefetch()
-#endif
+#ifndef types_h
+#define types_h
 
 #if defined(USE_PEXT)
 #  include <immintrin.h> // Header for _pext_u64() intrinsic
@@ -78,6 +27,7 @@
 #else
 #  define pext(b, m) 0
 #endif
+#include <cassert>
 
 #ifdef USE_POPCNT
 constexpr bool HasPopCnt = true;
@@ -103,17 +53,10 @@ typedef uint64_t Bitboard;
 constexpr int MAX_MOVES = 256;
 constexpr int MAX_PLY   = 128;
 
-/// A move needs 16 bits to be stored
-///
-/// bit  0- 5: destination square (from 0 to 63)
-/// bit  6-11: origin square (from 0 to 63)
-/// bit 12-13: promotion piece type - 2 (from KNIGHT-2 to QUEEN-2)
-/// bit 14-15: special move flag: promotion (1), en passant (2), castling (3)
-/// NOTE: EN-PASSANT bit is set only when a pawn can be captured
-///
-/// Special cases are MOVE_NONE and MOVE_NULL. We can sneak these in because in
-/// any normal move destination square is always different from origin square
-/// while MOVE_NONE and MOVE_NULL have the same origin and destination square.
+enum Memory {
+    NON_RELEASE,
+    RELEASE
+};
 
 enum Move : int {
   MOVE_NONE,
@@ -128,27 +71,27 @@ enum MoveType {
 };
 
 enum Color {
-  WHITE, BLACK, COLOR_NB = 2
+  WHITE, BLACK, COLOR_ALL = 2
 };
 
 enum CastlingSide {
-  KING_SIDE, QUEEN_SIDE, CASTLING_SIDE_NB = 2
+  KING_SIDE, QUEEN_SIDE, CASTLING_SIDE_ALL = 2
 };
 
 enum CastlingRight {
-  NO_CASTLING,
+  CASTLING_NONE,
   WHITE_OO,
   WHITE_OOO = WHITE_OO << 1,
   BLACK_OO  = WHITE_OO << 2,
   BLACK_OOO = WHITE_OO << 3,
-  ANY_CASTLING = WHITE_OO | WHITE_OOO | BLACK_OO | BLACK_OOO,
-  CASTLING_RIGHT_NB = 16
+  CASTLING_ANY = WHITE_OO | WHITE_OOO | BLACK_OO | BLACK_OOO,
+  CASTLING_RIGHT_ALL = 16
 };
 
 enum Phase {
   PHASE_ENDGAME,
   PHASE_MIDGAME = 128,
-  MG = 0, EG = 1, PHASE_NB = 2
+  MG = 0, EG = 1, PHASE_ALL = 2
 };
 
 enum ScaleFactor {
@@ -186,19 +129,19 @@ enum Value : int {
 };
 
 enum PieceType {
-  NO_PIECE_TYPE, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
+  PIECE_TYPE_NONE, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
   ALL_PIECES = 0,
-  PIECE_TYPE_NB = 8
+  PIECE_TYPE_ALL = 8
 };
 
 enum Piece {
-  NO_PIECE,
+  PIECE_NONE,
   W_PAWN = 1, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
   B_PAWN = 9, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING,
-  PIECE_NB = 16
+  PIECE_ALL = 16
 };
 
-extern Value PieceValue[PHASE_NB][PIECE_NB];
+extern Value PieceValue[PHASE_ALL][PIECE_ALL];
 
 enum Depth : int {
 
@@ -213,8 +156,6 @@ enum Depth : int {
   DEPTH_MAX  = MAX_PLY * ONE_PLY
 };
 
-static_assert(!(ONE_PLY & (ONE_PLY - 1)), "ONE_PLY is not a power of 2");
-
 enum Square : int {
   SQ_A1, SQ_B1, SQ_C1, SQ_D1, SQ_E1, SQ_F1, SQ_G1, SQ_H1,
   SQ_A2, SQ_B2, SQ_C2, SQ_D2, SQ_E2, SQ_F2, SQ_G2, SQ_H2,
@@ -226,7 +167,7 @@ enum Square : int {
   SQ_A8, SQ_B8, SQ_C8, SQ_D8, SQ_E8, SQ_F8, SQ_G8, SQ_H8,
   SQ_NONE,
 
-  SQUARE_NB = 64
+  SQUARE_ALL = 64
 };
 
 enum Direction : int {
@@ -242,13 +183,12 @@ enum Direction : int {
 };
 
 enum File : int {
-  FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H, FILE_NB
+  FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H, FILE_ALL
 };
 
 enum Rank : int {
-  RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_NB
+  RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_ALL
 };
-
 
 /// Score enum stores a middlegame and an endgame value in a single integer (enum).
 /// The least significant 16 bits are used to store the middlegame value and the
@@ -385,7 +325,7 @@ constexpr PieceType type_of(Piece pc) {
 }
 
 inline Color color_of(Piece pc) {
-  assert(pc != NO_PIECE);
+  assert(pc != PIECE_NONE);
   return Color(pc >> 3);
 }
 
@@ -455,4 +395,4 @@ constexpr bool is_ok(Move m) {
   return from_sq(m) != to_sq(m); // Catch MOVE_NULL and MOVE_NONE
 }
 
-#endif // #ifndef TYPES_H_INCLUDED
+#endif /* types_h */

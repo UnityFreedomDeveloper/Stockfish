@@ -18,8 +18,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef BITBOARD_H_INCLUDED
-#define BITBOARD_H_INCLUDED
+#ifndef Bitboard_h
+#define Bitboard_h
 
 #include <string>
 
@@ -60,21 +60,21 @@ constexpr Bitboard Rank6BB = Rank1BB << (8 * 5);
 constexpr Bitboard Rank7BB = Rank1BB << (8 * 6);
 constexpr Bitboard Rank8BB = Rank1BB << (8 * 7);
 
-extern int SquareDistance[SQUARE_NB][SQUARE_NB];
+extern int SquareDistance[SQUARE_ALL][SQUARE_ALL];
 
-extern Bitboard SquareBB[SQUARE_NB];
-extern Bitboard FileBB[FILE_NB];
-extern Bitboard RankBB[RANK_NB];
-extern Bitboard AdjacentFilesBB[FILE_NB];
-extern Bitboard ForwardRanksBB[COLOR_NB][RANK_NB];
-extern Bitboard BetweenBB[SQUARE_NB][SQUARE_NB];
-extern Bitboard LineBB[SQUARE_NB][SQUARE_NB];
-extern Bitboard DistanceRingBB[SQUARE_NB][8];
-extern Bitboard ForwardFileBB[COLOR_NB][SQUARE_NB];
-extern Bitboard PassedPawnMask[COLOR_NB][SQUARE_NB];
-extern Bitboard PawnAttackSpan[COLOR_NB][SQUARE_NB];
-extern Bitboard PseudoAttacks[PIECE_TYPE_NB][SQUARE_NB];
-extern Bitboard PawnAttacks[COLOR_NB][SQUARE_NB];
+extern Bitboard SquareBB[SQUARE_ALL];
+extern Bitboard FileBB[FILE_ALL];
+extern Bitboard RankBB[RANK_ALL];
+extern Bitboard AdjacentFilesBB[FILE_ALL];
+extern Bitboard ForwardRanksBB[COLOR_ALL][RANK_ALL];
+extern Bitboard BetweenBB[SQUARE_ALL][SQUARE_ALL];
+extern Bitboard LineBB[SQUARE_ALL][SQUARE_ALL];
+extern Bitboard DistanceRingBB[SQUARE_ALL][8];
+extern Bitboard ForwardFileBB[COLOR_ALL][SQUARE_ALL];
+extern Bitboard PassedPawnMask[COLOR_ALL][SQUARE_ALL];
+extern Bitboard PawnAttackSpan[COLOR_ALL][SQUARE_ALL];
+extern Bitboard PseudoAttacks[PIECE_TYPE_ALL][SQUARE_ALL];
+extern Bitboard PawnAttacks[COLOR_ALL][SQUARE_ALL];
 
 
 /// Magic holds all magic bitboards relevant data for a single square
@@ -99,8 +99,8 @@ struct Magic {
   }
 };
 
-extern Magic RookMagics[SQUARE_NB];
-extern Magic BishopMagics[SQUARE_NB];
+extern Magic RookMagics[SQUARE_ALL];
+extern Magic BishopMagics[SQUARE_ALL];
 
 
 /// Overloads of bitwise operators between a Bitboard and a Square for testing
@@ -381,4 +381,5 @@ inline Square pop_lsb(Bitboard* b) {
 inline Square frontmost_sq(Color c, Bitboard b) { return c == WHITE ? msb(b) : lsb(b); }
 inline Square  backmost_sq(Color c, Bitboard b) { return c == WHITE ? lsb(b) : msb(b); }
 
-#endif // #ifndef BITBOARD_H_INCLUDED
+
+#endif /* Bitboard_h */

@@ -18,17 +18,19 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdio.h>
 #include <cassert>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <iterator>
 
 #include "evaluate.h"
 #include "movegen.h"
-#include "position.h"
+#include "Position.h"
 #include "search.h"
 #include "thread.h"
-#include "timeman.h"
+#include "timem.h"
 #include "tt.h"
 #include "uci.h"
 #include "syzygy/tbprobe.h"
@@ -42,204 +44,6 @@ namespace {
   // FEN string of the initial position, normal chess
   const char* StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-
-  // position() is called when engine receives the "position" UCI command.
-  // The function sets up the position described in the given FEN string ("fen")
-  // or the starting position ("startpos") and then makes the moves given in the
-  // following move list ("moves").
-
-  void position(Position& pos, istringstream& is, StateListPtr& states) {
-
-    Move m;
-    string token, fen;
-
-    is >> token;
-
-    if (token == "startpos")
-    {
-        fen = StartFEN;
-        is >> token; // Consume "moves" token if any
-    }
-    else if (token == "fen")
-        while (is >> token && token != "moves")
-            fen += token + " ";
-    else
-        return;
-
-    states = StateListPtr(new std::deque<StateInfo>(1)); // Drop old and create a new one
-    pos.set(fen, Options["UCI_Chess960"], &states->back(), Threads.main());
-
-    // Parse move list (if any)
-    while (is >> token && (m = UCI::to_move(pos, token)) != MOVE_NONE)
-    {
-        states->emplace_back();
-        pos.do_move(m, states->back());
-    }
-  }
-
-
-  // setoption() is called when engine receives the "setoption" UCI command. The
-  // function updates the UCI option ("name") to the given value ("value").
-
-  void setoption(istringstream& is) {
-
-    string token, name, value;
-
-    is >> token; // Consume "name" token
-
-    // Read option name (can contain spaces)
-    while (is >> token && token != "value")
-        name += (name.empty() ? "" : " ") + token;
-
-    // Read option value (can contain spaces)
-    while (is >> token)
-        value += (value.empty() ? "" : " ") + token;
-
-    if (Options.count(name))
-        Options[name] = value;
-    else
-        sync_cout << "No such option: " << name << sync_endl;
-  }
-
-
-  // go() is called when engine receives the "go" UCI command. The function sets
-  // the thinking time and other parameters from the input string, then starts
-  // the search.
-
-  void go(Position& pos, istringstream& is, StateListPtr& states) {
-
-    Search::LimitsType limits;
-    string token;
-    bool ponderMode = false;
-
-    limits.startTime = now(); // As early as possible!
-
-    while (is >> token)
-        if (token == "searchmoves")
-            while (is >> token)
-                limits.searchmoves.push_back(UCI::to_move(pos, token));
-
-        else if (token == "wtime")     is >> limits.time[WHITE];
-        else if (token == "btime")     is >> limits.time[BLACK];
-        else if (token == "winc")      is >> limits.inc[WHITE];
-        else if (token == "binc")      is >> limits.inc[BLACK];
-        else if (token == "movestogo") is >> limits.movestogo;
-        else if (token == "depth")     is >> limits.depth;
-        else if (token == "nodes")     is >> limits.nodes;
-        else if (token == "movetime")  is >> limits.movetime;
-        else if (token == "mate")      is >> limits.mate;
-        else if (token == "perft")     is >> limits.perft;
-        else if (token == "infinite")  limits.infinite = 1;
-        else if (token == "ponder")    ponderMode = true;
-
-    Threads.start_thinking(pos, states, limits, ponderMode);
-  }
-
-
-  // bench() is called when engine receives the "bench" command. Firstly
-  // a list of UCI commands is setup according to bench parameters, then
-  // it is run one by one printing a summary at the end.
-
-  void bench(Position& pos, istream& args, StateListPtr& states) {
-
-    string token;
-    uint64_t num, nodes = 0, cnt = 1;
-
-    vector<string> list = setup_bench(pos, args);
-    num = count_if(list.begin(), list.end(), [](string s) { return s.find("go ") == 0; });
-
-    TimePoint elapsed = now();
-
-    for (const auto& cmd : list)
-    {
-        istringstream is(cmd);
-        is >> skipws >> token;
-
-        if (token == "go")
-        {
-            cerr << "\nPosition: " << cnt++ << '/' << num << endl;
-            go(pos, is, states);
-            Threads.main()->wait_for_search_finished();
-            nodes += Threads.nodes_searched();
-        }
-        else if (token == "setoption")  setoption(is);
-        else if (token == "position")   position(pos, is, states);
-        else if (token == "ucinewgame") Search::clear();
-    }
-
-    elapsed = now() - elapsed + 1; // Ensure positivity to avoid a 'divide by zero'
-
-    dbg_print(); // Just before exiting
-
-    cerr << "\n==========================="
-         << "\nTotal time (ms) : " << elapsed
-         << "\nNodes searched  : " << nodes
-         << "\nNodes/second    : " << 1000 * nodes / elapsed << endl;
-  }
-
-} // namespace
-
-
-/// UCI::loop() waits for a command from stdin, parses it and calls the appropriate
-/// function. Also intercepts EOF from stdin to ensure gracefully exiting if the
-/// GUI dies unexpectedly. When called with some command line arguments, e.g. to
-/// run 'bench', once the command is executed the function returns immediately.
-/// In addition to the UCI ones, also some additional debug commands are supported.
-
-void UCI::loop(int argc, char* argv[]) {
-
-  Position pos;
-  string token, cmd;
-  StateListPtr states(new std::deque<StateInfo>(1));
-  auto uiThread = std::make_shared<Thread>(0);
-
-  pos.set(StartFEN, false, &states->back(), uiThread.get());
-
-  for (int i = 1; i < argc; ++i)
-      cmd += std::string(argv[i]) + " ";
-
-  do {
-      if (argc == 1 && !getline(cin, cmd)) // Block here waiting for input or EOF
-          cmd = "quit";
-
-      istringstream is(cmd);
-
-      token.clear(); // Avoid a stale if getline() returns empty or blank line
-      is >> skipws >> token;
-
-      // The GUI sends 'ponderhit' to tell us the user has played the expected move.
-      // So 'ponderhit' will be sent if we were told to ponder on the same move the
-      // user has played. We should continue searching but switch from pondering to
-      // normal search. In case Threads.stopOnPonderhit is set we are waiting for
-      // 'ponderhit' to stop the search, for instance if max search depth is reached.
-      if (    token == "quit"
-          ||  token == "stop"
-          || (token == "ponderhit" && Threads.stopOnPonderhit))
-          Threads.stop = true;
-
-      else if (token == "ponderhit")
-          Threads.ponder = false; // Switch to normal search
-
-      else if (token == "uci")
-          sync_cout << "id name " << engine_info(true)
-                    << "\n"       << Options
-                    << "\nuciok"  << sync_endl;
-
-      else if (token == "setoption")  setoption(is);
-      else if (token == "go")         go(pos, is, states);
-      else if (token == "position")   position(pos, is, states);
-      else if (token == "ucinewgame") Search::clear();
-      else if (token == "isready")    sync_cout << "readyok" << sync_endl;
-
-      // Additional custom non-UCI commands, mainly for debugging
-      else if (token == "flip")  pos.flip();
-      else if (token == "bench") bench(pos, is, states);
-      else if (token == "d")     sync_cout << pos << sync_endl;
-      else if (token == "eval")  sync_cout << Eval::trace(pos) << sync_endl;
-      else
-          sync_cout << "Unknown command: " << cmd << sync_endl;
-
-  } while (token != "quit" && argc == 1); // Command line args are one-shot
 }
 
 
@@ -313,4 +117,260 @@ Move UCI::to_move(const Position& pos, string& str) {
           return m;
 
   return MOVE_NONE;
+}
+
+void after_move(Position& pos, Move m, std::deque<Move> &moveHistory) {
+    Threads.do_move(m, pos);
+    moveHistory.push_back(m);
+    cout << pos << endl;
+}
+
+void UCI::init_move(int from, int to, Position &pos, std::deque<Move> &moveHistory) {
+    StateInfo *tmp = new StateInfo;
+    Move m = make_move(Square(from), Square(to));
+    
+    pos.do_move(m, *tmp);
+    after_move(pos, m, moveHistory);
+}
+
+void UCI::castle_move(int castleSide, Position &pos, std::deque<Move> &moveHistory) {
+    Color colors = pos.side_to_move();
+    CastlingSide cs = CastlingSide(castleSide);
+    const Position *const_pos = const_cast<const Position*>(&pos);
+    Move castle = make_castling_move(colors, cs, *const_pos);
+    
+    StateInfo *tmp = new StateInfo;
+    pos.do_move(castle, *tmp);
+    after_move(pos, castle, moveHistory);
+}
+
+void UCI::enpassant_move(int from, Position &pos, std::deque<Move> &moveHistory) {
+    const Position *const_pos = const_cast<const Position*>(&pos);
+    Move ep = make_enpassant_move(Square(from), *const_pos);
+    
+    StateInfo *tmp = new StateInfo;
+    pos.do_move(ep, *tmp);
+    after_move(pos, ep, moveHistory);
+}
+
+void UCI::promotion_move(int from, int to, Position &pos, std::deque<Move> &moveHistory) {
+    Move promo = make_promotion_move(Square(from), Square(to));
+    
+    StateInfo *tmp = new StateInfo;
+    pos.do_move(promo, *tmp);
+    after_move(pos, promo, moveHistory);
+}
+
+//only for think
+void threads_setup(Position &pos, StateListPtr &states) {
+    Threads.setup(pos, states);
+}
+
+//stronger AI than search_best
+Move UCI::think(Position& pos, deque<Move> &moveHistory) {
+
+  Search::LimitsType limits;
+  string token;
+  bool ponderMode = false;
+  limits.startTime = now();
+    
+  std::future<Move> ftr = Threads.main()->pMove.get_future();
+  Threads.think(pos, limits, ponderMode);
+  Move m = ftr.get();
+
+  Threads.main()->pMove = std::promise<Move>();
+    
+  if (m != MOVE_NONE) {
+    if (type_of(m) == CASTLING)
+    {
+        Square from = from_sq(m);
+        Square to = to_sq(m);
+        to = make_square(to > from ? FILE_G : FILE_C, rank_of(from));
+        
+        Move cm = make_move(from, to);
+        return cm;
+    }
+    
+  }
+  return m;
+}
+
+void UCI::init(Position &pos, StateListPtr &states) {
+    StateListPtr s(new std::deque<StateInfo>(1));
+    states = move(s);
+    auto uiThread = std::make_shared<Thread>(0);
+
+    pos.set(StartFEN, Options["UCI_Chess960"], &states->back(), uiThread.get());
+    threads_setup(pos, states);
+    cout << pos << endl;
+}
+
+void UCI::init(Position &pos, StateListPtr &states, const char* customFEN) {
+    StateListPtr s(new std::deque<StateInfo>(1));
+    states = move(s);
+    auto uiThread = std::make_shared<Thread>(0);
+
+    pos.set(customFEN, Options["UCI_Chess960"], &states->back(), uiThread.get());
+    threads_setup(pos, states);
+    cout << pos << endl;
+}
+
+void UCI::undo_move(Position& pos, deque<Move> &moveHistory) {
+    Move m = moveHistory.back();
+    Threads.undo_move(m);
+    pos.undo_move(m, RELEASE);
+    moveHistory.pop_back();
+    
+    cout << pos << endl;
+}
+
+void UCI::new_game(Position &pos, StateListPtr &states, std::deque<Move> &moveHistory) {
+    Search::clear();
+    pos.release();
+    StateListPtr s(new std::deque<StateInfo>(1));
+    states = move(s);
+    auto uiThread = std::make_shared<Thread>(0);
+
+    pos.set(StartFEN, Options["UCI_Chess960"], &states->back(), uiThread.get());
+    moveHistory.clear();
+    
+    threads_setup(pos, states);
+}
+
+void UCI::release_resources(Position &pos) {
+    pos.release();
+    Threads.set(0);
+}
+
+bool UCI::is_game_draw(Position &pos) { 
+    bool repeat = pos.three_fold_repetition();
+    int fivetyMove = pos.rule50_count();
+    
+    if (!repeat && fivetyMove < 50) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+int UCI::fivety_move_rule_count(Position &pos) {
+    return pos.sInfo()->rule50;
+}
+
+bool UCI::all_possible_moves_match(Position &pos, const int* from, const int* to, const int count) {
+    int mCount = 0;
+    int move50 = pos.sInfo()->rule50;
+    if (move50 >= 100) {
+        return true;
+    }
+    
+    for (auto& m : MoveList<LEGAL>(pos)) {
+        mCount++;
+        bool match = false;
+        int const *movesFrom = from;
+        int const *movesTo = to;
+        Square f = from_sq(m);
+        Square t = to_sq(m);
+        if (type_of(m) == CASTLING)
+        {
+            t = make_square(t > f ? FILE_G : FILE_C, rank_of(f));
+        }
+        
+        for (int i = 0; i < count; i++) {
+            cout << "mcount " << mCount << " count " << count << endl;
+            cout << "moves from " << *movesFrom << " f " << f << endl;
+            cout << "moves to" << *movesTo << " t " << t << endl;
+            if (*movesFrom == f && *movesTo == t) {
+                cout << "matched" << endl;
+                match = true;
+                break;
+            }
+            
+            movesFrom++;
+            movesTo++;
+        }
+        
+        if (match == false)
+            return false;
+    }
+    
+    if (mCount != count) {
+        return false;
+    }
+    assert(mCount == count);
+    return true;
+}
+
+bool UCI::all_possible_moves_match_inverse(Position &pos, const int* from, const int* to, const int count) {
+    int move50 = pos.sInfo()->rule50;
+    if (move50 >= 100) {
+        return true;
+    }
+
+    int const *movesFrom = from;
+    int const *movesTo = to;
+    vector<int> mFrom;
+    vector<int> mTo;
+    for (auto& m : MoveList<LEGAL>(pos)) {
+        Square f = from_sq(m);
+        Square t = to_sq(m);
+        if (type_of(m) == CASTLING)
+        {
+            t = make_square(t > f ? FILE_G : FILE_C, rank_of(f));
+        }
+        
+        mFrom.push_back(f);
+        mTo.push_back(t);
+    }
+    for (int i = 0; i < count; i++) {
+        bool match = false;
+        
+        for (int j = 0; j < mFrom.size(); j++) {
+            int tempMFrom = mFrom[j];
+            int tempMTo = mTo[j];
+            cout << "mFrom.size() " << mFrom.size() << " count" << count << endl;
+            cout << " f " << tempMFrom << "moves from " << *movesFrom << endl;
+            cout << " t " << tempMTo << "moves to " << *movesTo << endl;
+            if (*movesFrom == tempMFrom && *movesTo == tempMTo) {
+                cout << "matched" << endl;
+                match = true;
+                break;
+            }
+        }
+
+        movesFrom++;
+        movesTo++;
+        if (match == false)
+            return false;
+    }
+
+    if (mFrom.size() != count) {
+        return false;
+    }
+    assert(mFrom.size() == count);
+    return true;
+}
+
+void UCI::pos_possible_moves(const Position &pos, int &size, int *mPointer) {
+    int count = 0;
+    for (auto& m : MoveList<LEGAL>(pos)) {
+        count++;
+        *mPointer = m;
+        
+        mPointer++;
+    }
+    
+    for (int i = 0; i < count; i++) {
+        mPointer--;
+    }
+    size = count;
+}
+
+void UCI::set_position(Position& pos, StateListPtr& states, string fen) {
+  StateListPtr s(new std::deque<StateInfo>(1));
+  states = move(s);
+  pos.set(fen, Options["UCI_Chess960"], &states->back(), Threads.main());
+  threads_setup(pos, states);
+    
+    cout << pos << endl;
 }

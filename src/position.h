@@ -18,16 +18,16 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef POSITION_H_INCLUDED
-#define POSITION_H_INCLUDED
+#ifndef Position_h
+#define Position_h
 
 #include <cassert>
 #include <deque>
 #include <memory> // For std::unique_ptr
 #include <string>
 
-#include "bitboard.h"
-#include "types.h"
+#include "Bitboard.h"
+//#include "types.h"
 
 
 /// StateInfo struct stores information needed to restore a Position object to
@@ -39,7 +39,7 @@ struct StateInfo {
   // Copied when making a move
   Key    pawnKey;
   Key    materialKey;
-  Value  nonPawnMaterial[COLOR_NB];
+  Value  nonPawnMaterial[COLOR_ALL];
   int    castlingRights;
   int    rule50;
   int    pliesFromNull;
@@ -50,9 +50,9 @@ struct StateInfo {
   Bitboard   checkersBB;
   Piece      capturedPiece;
   StateInfo* previous;
-  Bitboard   blockersForKing[COLOR_NB];
-  Bitboard   pinners[COLOR_NB];
-  Bitboard   checkSquares[PIECE_TYPE_NB];
+  Bitboard   blockersForKing[COLOR_ALL];
+  Bitboard   pinners[COLOR_ALL];
+  Bitboard   checkSquares[PIECE_TYPE_ALL];
 };
 
 /// A list to keep track of the position states along the setup moves (from the
@@ -132,7 +132,7 @@ public:
   // Doing and undoing moves
   void do_move(Move m, StateInfo& newSt);
   void do_move(Move m, StateInfo& newSt, bool givesCheck);
-  void undo_move(Move m);
+  void undo_move(Move m, Memory release = NON_RELEASE);
   void do_null_move(StateInfo& newSt);
   void undo_null_move();
 
@@ -154,9 +154,13 @@ public:
   bool has_game_cycle(int ply) const;
   bool has_repeated() const;
   int rule50_count() const;
+  bool three_fold_repetition() const;
   Score psq_score() const;
   Value non_pawn_material(Color c) const;
   Value non_pawn_material() const;
+  StateInfo* sInfo();
+  void ref_state(StateInfo *si);
+  void release();
 
   // Position consistency check, for debugging
   bool pos_is_ok() const;
@@ -176,15 +180,15 @@ private:
   void do_castling(Color us, Square from, Square& to, Square& rfrom, Square& rto);
 
   // Data members
-  Piece board[SQUARE_NB];
-  Bitboard byTypeBB[PIECE_TYPE_NB];
-  Bitboard byColorBB[COLOR_NB];
-  int pieceCount[PIECE_NB];
-  Square pieceList[PIECE_NB][16];
-  int index[SQUARE_NB];
-  int castlingRightsMask[SQUARE_NB];
-  Square castlingRookSquare[CASTLING_RIGHT_NB];
-  Bitboard castlingPath[CASTLING_RIGHT_NB];
+  Piece board[SQUARE_ALL];
+  Bitboard byTypeBB[PIECE_TYPE_ALL];
+  Bitboard byColorBB[COLOR_ALL];
+  int pieceCount[PIECE_ALL];
+  Square pieceList[PIECE_ALL][16];
+  int index[SQUARE_ALL];
+  int castlingRightsMask[SQUARE_ALL];
+  Square castlingRookSquare[CASTLING_RIGHT_ALL];
+  Bitboard castlingPath[CASTLING_RIGHT_ALL];
   int gamePly;
   Color sideToMove;
   Score psq;
@@ -194,7 +198,7 @@ private:
 };
 
 namespace PSQT {
-  extern Score psq[PIECE_NB][SQUARE_NB];
+  extern Score psq[PIECE_ALL][SQUARE_ALL];
 }
 
 extern std::ostream& operator<<(std::ostream& os, const Position& pos);
@@ -204,7 +208,7 @@ inline Color Position::side_to_move() const {
 }
 
 inline bool Position::empty(Square s) const {
-  return board[s] == NO_PIECE;
+  return board[s] == PIECE_NONE;
 }
 
 inline Piece Position::piece_on(Square s) const {
@@ -417,7 +421,7 @@ inline void Position::move_piece(Piece pc, Square from, Square to) {
   byTypeBB[ALL_PIECES] ^= fromTo;
   byTypeBB[type_of(pc)] ^= fromTo;
   byColorBB[color_of(pc)] ^= fromTo;
-  board[from] = NO_PIECE;
+  board[from] = PIECE_NONE;
   board[to] = pc;
   index[to] = index[from];
   pieceList[pc][index[to]] = to;
@@ -428,4 +432,5 @@ inline void Position::do_move(Move m, StateInfo& newSt) {
   do_move(m, newSt, gives_check(m));
 }
 
-#endif // #ifndef POSITION_H_INCLUDED
+
+#endif /* Position_h */

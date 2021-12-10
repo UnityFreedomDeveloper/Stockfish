@@ -18,12 +18,13 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdio.h>
 #include <fstream>
 #include <iostream>
 #include <istream>
 #include <vector>
 
-#include "position.h"
+#include "Position.h"
 
 using namespace std;
 

@@ -18,8 +18,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef EVALUATE_H_INCLUDED
-#define EVALUATE_H_INCLUDED
+#ifndef evaluate_h
+#define evaluate_h
 
 #include <string>
 
@@ -36,4 +36,4 @@ std::string trace(const Position& pos);
 Value evaluate(const Position& pos);
 }
 
-#endif // #ifndef EVALUATE_H_INCLUDED
+#endif /* evaluate_h */

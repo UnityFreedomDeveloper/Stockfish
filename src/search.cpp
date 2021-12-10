@@ -18,6 +18,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdio.h>
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -29,10 +30,10 @@
 #include "misc.h"
 #include "movegen.h"
 #include "movepick.h"
-#include "position.h"
+#include "Position.h"
 #include "search.h"
 #include "thread.h"
-#include "timeman.h"
+#include "timem.h"
 #include "tt.h"
 #include "uci.h"
 #include "syzygy/tbprobe.h"
@@ -194,6 +195,7 @@ void Search::clear() {
 /// MainThread::search() is called by the main thread when the program receives
 /// the UCI 'go' command. It searches from the root position and outputs the "bestmove".
 
+//void MainThread::search(std::promise<Move> &pMove) {
 void MainThread::search() {
 
   if (Limits.perft)
@@ -293,6 +295,7 @@ void MainThread::search() {
       std::cout << " ponder " << UCI::move(bestThread->rootMoves[0].pv[1], rootPos.is_chess960());
 
   std::cout << sync_endl;
+  pMove.set_value(bestThread->rootMoves[0].pv[0]);
 }
 
 
@@ -313,7 +316,7 @@ void Thread::search() {
 
   std::memset(ss-4, 0, 7 * sizeof(Stack));
   for (int i = 4; i > 0; i--)
-     (ss-i)->continuationHistory = &this->continuationHistory[NO_PIECE][0]; // Use as sentinel
+     (ss-i)->continuationHistory = &this->continuationHistory[PIECE_NONE][0]; // Use as sentinel
 
   bestValue = delta = alpha = -VALUE_INFINITE;
   beta = VALUE_INFINITE;
@@ -448,7 +451,7 @@ void Thread::search() {
               {
                   beta = std::min(bestValue + delta, VALUE_INFINITE);
                   if (mainThread)
-                	  ++failedHighCnt;
+                      ++failedHighCnt;
               }
               else
                   break;
@@ -618,7 +621,7 @@ namespace {
 
     (ss+1)->ply = ss->ply + 1;
     ss->currentMove = (ss+1)->excludedMove = bestMove = MOVE_NONE;
-    ss->continuationHistory = &thisThread->continuationHistory[NO_PIECE][0];
+    ss->continuationHistory = &thisThread->continuationHistory[PIECE_NONE][0];
     (ss+2)->killers[0] = (ss+2)->killers[1] = MOVE_NONE;
     Square prevSq = to_sq((ss-1)->currentMove);
 
@@ -678,7 +681,7 @@ namespace {
         if (    piecesCount <= TB::Cardinality
             && (piecesCount <  TB::Cardinality || depth >= TB::ProbeDepth)
             &&  pos.rule50_count() == 0
-            && !pos.can_castle(ANY_CASTLING))
+            && !pos.can_castle(CASTLING_ANY))
         {
             TB::ProbeState err;
             TB::WDLScore wdl = Tablebases::probe_wdl(pos, &err);
@@ -788,7 +791,7 @@ namespace {
         Depth R = ((823 + 67 * depth / ONE_PLY) / 256 + std::min(int(eval - beta) / 200, 3)) * ONE_PLY;
 
         ss->currentMove = MOVE_NULL;
-        ss->continuationHistory = &thisThread->continuationHistory[NO_PIECE][0];
+        ss->continuationHistory = &thisThread->continuationHistory[PIECE_NONE][0];
 
         pos.do_null_move(st);
 
@@ -1244,7 +1247,7 @@ moves_loop: // When in check, search starts from here
     Thread* thisThread = pos.this_thread();
     (ss+1)->ply = ss->ply + 1;
     ss->currentMove = bestMove = MOVE_NONE;
-    ss->continuationHistory = &thisThread->continuationHistory[NO_PIECE][0];
+    ss->continuationHistory = &thisThread->continuationHistory[PIECE_NONE][0];
     inCheck = pos.checkers();
     moveCount = 0;
 
@@ -1691,7 +1694,7 @@ void Tablebases::rank_root_moves(Position& pos, Search::RootMoves& rootMoves) {
         ProbeDepth = DEPTH_ZERO;
     }
 
-    if (Cardinality >= popcount(pos.pieces()) && !pos.can_castle(ANY_CASTLING))
+    if (Cardinality >= popcount(pos.pieces()) && !pos.can_castle(CASTLING_ANY))
     {
         // Rank moves using DTZ tables
         RootInTB = root_probe(pos, rootMoves);

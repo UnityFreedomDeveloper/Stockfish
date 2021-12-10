@@ -18,11 +18,11 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef PAWNS_H_INCLUDED
-#define PAWNS_H_INCLUDED
+#ifndef pawn_h
+#define pawn_h
 
 #include "misc.h"
-#include "position.h"
+#include "Position.h"
 #include "types.h"
 
 namespace Pawns {
@@ -62,16 +62,16 @@ struct Entry {
   Value evaluate_shelter(const Position& pos, Square ksq);
 
   Key key;
-  Score scores[COLOR_NB];
-  Bitboard passedPawns[COLOR_NB];
-  Bitboard pawnAttacks[COLOR_NB];
-  Bitboard pawnAttacksSpan[COLOR_NB];
-  Square kingSquares[COLOR_NB];
-  Score kingSafety[COLOR_NB];
-  int weakUnopposed[COLOR_NB];
-  int castlingRights[COLOR_NB];
-  int semiopenFiles[COLOR_NB];
-  int pawnsOnSquares[COLOR_NB][COLOR_NB]; // [color][light/dark squares]
+  Score scores[COLOR_ALL];
+  Bitboard passedPawns[COLOR_ALL];
+  Bitboard pawnAttacks[COLOR_ALL];
+  Bitboard pawnAttacksSpan[COLOR_ALL];
+  Square kingSquares[COLOR_ALL];
+  Score kingSafety[COLOR_ALL];
+  int weakUnopposed[COLOR_ALL];
+  int castlingRights[COLOR_ALL];
+  int semiopenFiles[COLOR_ALL];
+  int pawnsOnSquares[COLOR_ALL][COLOR_ALL]; // [color][light/dark squares]
   int asymmetry;
   int openFiles;
 };
@@ -83,4 +83,4 @@ Entry* probe(const Position& pos);
 
 } // namespace Pawns
 
-#endif // #ifndef PAWNS_H_INCLUDED
+#endif /* pawn_h */

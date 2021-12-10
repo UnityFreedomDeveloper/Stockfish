@@ -18,10 +18,11 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <cassert>
+#include <stdio.h>
 
+#include <cassert>
 #include "movegen.h"
-#include "position.h"
+#include "Position.h"
 
 namespace {
 
@@ -297,6 +298,28 @@ namespace {
 
 } // namespace
 
+
+//If MoveType is either Castling, Enpassant, or Promotion.
+//Call appropriate function while make_move will not work on these case.
+Move make_castling_move(Color Us, CastlingSide Cs, const Position& pos) {
+  CastlingRight Cr = Us | Cs;
+  Square kfrom = pos.square<KING>(Us);
+  Square rfrom = pos.castling_rook_square(Cr);
+
+  Move m = make<CASTLING>(kfrom, rfrom);
+
+  return m;
+}
+Move make_enpassant_move(Square from, const Position& pos) {
+    Move m = make<ENPASSANT>(from, pos.ep_square());
+    
+    return m;
+}
+Move make_promotion_move(Square from, Square to) {
+    Move m = make<PROMOTION>(from, to, QUEEN);
+    
+    return m;
+}
 
 /// generate<CAPTURES> generates all pseudo-legal captures and queen
 /// promotions. Returns a pointer to the end of the move list.

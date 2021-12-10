@@ -18,6 +18,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdio.h>
+
 #include <algorithm>
 #include <cassert>
 #include <ostream>
@@ -52,8 +54,57 @@ bool CaseInsensitiveLess::operator() (const string& s1, const string& s2) const 
 
 
 /// init() initializes the UCI options to their hard-coded default values
+// skill | think | elo
+// 17 | 1000 | draw chess.com 2700 (w&b*1) [2500 elo]
+// 18 | 1000 | 2700 lose (w*1) win (w&b*1)
+// 19 | 1000 | still testing (lose chess.com 2900), win 2700 (w&b*1)
+// 20 | 1000 | (won chess.com 2900) (w*1,b*2), won android app 2135 (w*1)
 
-void init(OptionsMap& o) {
+// 0 | 20 | lose android app 1435 (b&w * 1), won android app 1235, 1352 (w * 1), lose sunfish (d=3, b&w*1) [elo 1350]
+// 2 | 20 | chess.com 1500 lose(w*1)
+// 5 | 20 | won android app 1435 (w * 1), draw (b * 1), won sunfish (d=3, b&w*1) [elo 1500]
+// 10 | 20, 5 | won android app 1435 (b&w * 1), won 1527 (b(2), w * 1), lose 1680 (w * 1), win (b*1), chess.com 1700 draw(w&b*1) [lose on thinking time 5, (b*1)] [1650 elo]
+// 15 | 20 | lose android app 1835 (w&b*1), won (b*1), chess.com 2000 won(b*1), lose(w*1)  [1750 elo]
+// 19 | 20 | won android app 1835 (w*1), lose (b*1), losing on 1915 (w*1) [1850 elo] not included
+// 20 | 20 | won android app 1835 (w&b *1), 1680 (w *1), lose on 1915 (w * 1, b draw), 1985 (b&w * 1), win chess.com 2000 (w*1), win 2200 (w&b*1), lose 2300 (b*1) [1900 elo]
+// 0,5,15 | 20 | lose android app 1680 (w * 1)
+
+// 10 | 100 | lose android app 2135 (b*1)
+// 15 | 100 | lose android app 2135 (b*1), won 1985 (b*1), won 2200 chess.com (b&w*1), lose 2300 (b*1) [2200 elo]
+// 17 | 100 | lose chess.com 2500 (b*1), 2400 draw (b*1), 2300 draw(b*1) won(b*1)[2400 elo]
+// 18 | 100 | won chess.com 2400(b*1), 2500 draw (b*1) won (b*1), 2600 lose (b*1) [2500 elo] not included
+// 20 | 100 | won android app 1915 (w*1), 1985 (b&w*1), 2135 (b&w*1), won chess.com 2500 (b&w * 1), 2600 lose(b*1), 2700 won(w*1) draw(b*1) lose(b*1) [elo 2600]
+
+// skill(think)
+// w)0(20) vs b)2(20) 0-3 | b)0(2) vs w)2(20) 0-3
+// w)20(20) vs b)15(100) 1-2 | b)20(20) vs w)15(100) 0-3
+// w)20(20) vs b)18(100) 0-2 | b)20(20) vs w)18(100) 0-1
+// w)17(100) vs b)15(100) 3-0
+// w)15(100) vs b)17(100) 0-2
+// w)17(100) vs b)20(100) 0-1
+// w)20(20) vs b)17(100) 0-1 | w)17(100) vs b)20(20) 1-0
+// w)15(1000) vs b)20(100) 2-0, draw*1 | w)20(100) vs b)15(1000) 3-0
+// w)17(1000) vs b)20(100) 1-0 | w)20(100) vs b)17(1000) 1-2
+// w)17(3000) vs b)20(1000) 0-1 | b)17(3000) vs w)20(1000) 1-0
+// w)19(3000) vs b)20(3000) 0-1
+// w)20(1000) vs b)20(3000) 0-1, draw*2 | b)20(1000) vs w)20(3000) draw*1
+
+
+/**
+ skill | time | elo
+ 0 | 20 | 1350
+ 5 | 20 | 1500
+ 10 | 20 | 1650
+ 15 | 20 | 1750
+ 20 | 20 1900
+ 17 | 100 | 2150
+ 20 | 100 | 2300
+ 17 | 1000 | 2500
+ 20 | 1000 | 2700
+ 20 | 3000 | ?
+ 
+ */
+void init(OptionsMap& o, double skill, double time) {
 
   // at most 2^32 clusters.
   constexpr int MaxHashMB = Is64Bit ? 131072 : 2048;
@@ -66,9 +117,9 @@ void init(OptionsMap& o) {
   o["Clear Hash"]            << Option(on_clear_hash);
   o["Ponder"]                << Option(false);
   o["MultiPV"]               << Option(1, 1, 500);
-  o["Skill Level"]           << Option(20, 0, 20);
+  o["Skill Level"]           << Option(skill, 0, 20);
   o["Move Overhead"]         << Option(30, 0, 5000);
-  o["Minimum Thinking Time"] << Option(20, 0, 5000);
+  o["Minimum Thinking Time"] << Option(time, 0, 5000);
   o["Slow Mover"]            << Option(84, 10, 1000);
   o["nodestime"]             << Option(0, 0, 10000);
   o["UCI_Chess960"]          << Option(false);
@@ -78,7 +129,6 @@ void init(OptionsMap& o) {
   o["Syzygy50MoveRule"]      << Option(true);
   o["SyzygyProbeLimit"]      << Option(7, 0, 7);
 }
-
 
 /// operator<<() is used to print all the options default values in chronological
 /// insertion order (the idx field) and in the format defined by the UCI protocol.

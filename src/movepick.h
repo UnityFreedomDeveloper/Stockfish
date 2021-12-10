@@ -18,15 +18,15 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef MOVEPICK_H_INCLUDED
-#define MOVEPICK_H_INCLUDED
+#ifndef movepick_h
+#define movepick_h
 
 #include <array>
 #include <limits>
 #include <type_traits>
 
 #include "movegen.h"
-#include "position.h"
+#include "Position.h"
 #include "types.h"
 
 /// StatsEntry stores the stat table value. It is usually a number but could
@@ -86,22 +86,22 @@ enum StatsParams { NOT_USED = 0 };
 /// unsuccessful during the current search, and is used for reduction and move
 /// ordering decisions. It uses 2 tables (one for each color) indexed by
 /// the move's from and to squares, see chessprogramming.wikispaces.com/Butterfly+Boards
-typedef Stats<int16_t, 10692, COLOR_NB, int(SQUARE_NB) * int(SQUARE_NB)> ButterflyHistory;
+typedef Stats<int16_t, 10692, COLOR_ALL, int(SQUARE_ALL) * int(SQUARE_ALL)> ButterflyHistory;
 
 /// CounterMoveHistory stores counter moves indexed by [piece][to] of the previous
 /// move, see chessprogramming.wikispaces.com/Countermove+Heuristic
-typedef Stats<Move, NOT_USED, PIECE_NB, SQUARE_NB> CounterMoveHistory;
+typedef Stats<Move, NOT_USED, PIECE_ALL, SQUARE_ALL> CounterMoveHistory;
 
 /// CapturePieceToHistory is addressed by a move's [piece][to][captured piece type]
-typedef Stats<int16_t, 10692, PIECE_NB, SQUARE_NB, PIECE_TYPE_NB> CapturePieceToHistory;
+typedef Stats<int16_t, 10692, PIECE_ALL, SQUARE_ALL, PIECE_TYPE_ALL> CapturePieceToHistory;
 
 /// PieceToHistory is like ButterflyHistory but is addressed by a move's [piece][to]
-typedef Stats<int16_t, 29952, PIECE_NB, SQUARE_NB> PieceToHistory;
+typedef Stats<int16_t, 29952, PIECE_ALL, SQUARE_ALL> PieceToHistory;
 
 /// ContinuationHistory is the combined history of a given pair of moves, usually
 /// the current one given a previous one. The nested history table is based on
 /// PieceToHistory instead of ButterflyBoards.
-typedef Stats<PieceToHistory, NOT_USED, PIECE_NB, SQUARE_NB> ContinuationHistory;
+typedef Stats<PieceToHistory, NOT_USED, PIECE_ALL, SQUARE_ALL> ContinuationHistory;
 
 
 /// MovePicker class is used to pick one pseudo legal move at a time from the
@@ -149,4 +149,5 @@ private:
   ExtMove moves[MAX_MOVES];
 };
 
-#endif // #ifndef MOVEPICK_H_INCLUDED
+
+#endif /* movepick_h */

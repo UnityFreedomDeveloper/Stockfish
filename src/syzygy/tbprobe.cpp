@@ -17,6 +17,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <stdio.h>
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
@@ -28,9 +29,9 @@
 #include <sstream>
 #include <type_traits>
 
-#include "../bitboard.h"
+#include "../Bitboard.h"
 #include "../movegen.h"
-#include "../position.h"
+#include "../Position.h"
 #include "../search.h"
 #include "../thread_win32.h"
 #include "../types.h"
@@ -69,13 +70,13 @@ inline Square operator^(Square s, int i) { return Square(int(s) ^ i); }
 
 const std::string PieceToChar = " PNBRQK  pnbrqk";
 
-int MapPawns[SQUARE_NB];
-int MapB1H1H7[SQUARE_NB];
-int MapA1D1D4[SQUARE_NB];
-int MapKK[10][SQUARE_NB]; // [MapA1D1D4][SQUARE_NB]
+int MapPawns[SQUARE_ALL];
+int MapB1H1H7[SQUARE_ALL];
+int MapA1D1D4[SQUARE_ALL];
+int MapKK[10][SQUARE_ALL]; // [MapA1D1D4][SQUARE_ALL]
 
-int Binomial[6][SQUARE_NB];    // [k][n] k elements from a set of n elements
-int LeadPawnIdx[6][SQUARE_NB]; // [leadPawnsCnt][SQUARE_NB]
+int Binomial[6][SQUARE_ALL];    // [k][n] k elements from a set of n elements
+int LeadPawnIdx[6][SQUARE_ALL]; // [leadPawnsCnt][SQUARE_ALL]
 int LeadPawnsSize[6][4];       // [leadPawnsCnt][FILE_A..FILE_D]
 
 // Comparison function to sort leading pawns in ascending MapPawns[] order
@@ -224,7 +225,14 @@ public:
             exit(1);
         }
 #else
-        HANDLE fd = CreateFile(fname.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+        const char* orig = fname.c_str();
+        size_t origsize = strlen(orig) + 1;
+        const size_t newsize = 100;
+        size_t convertedChars = 0;
+        wchar_t wcstring[newsize];
+        mbstowcs_s(&convertedChars, wcstring, origsize, orig, _TRUNCATE);
+        wcscat_s(wcstring, L" (wchar_t *)");
+        HANDLE fd = CreateFile(wcstring, GENERIC_READ, FILE_SHARE_READ, nullptr,
                                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 
         if (fd == INVALID_HANDLE_VALUE)

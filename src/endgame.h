@@ -18,8 +18,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef ENDGAME_H_INCLUDED
-#define ENDGAME_H_INCLUDED
+#ifndef endgame_h
+#define endgame_h
 
 #include <map>
 #include <memory>
@@ -27,7 +27,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "position.h"
+#include "Position.h"
 #include "types.h"
 
 
@@ -142,4 +142,4 @@ public:
   }
 };
 
-#endif // #ifndef ENDGAME_H_INCLUDED
+#endif /* endgame_h */

@@ -18,8 +18,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef TT_H_INCLUDED
-#define TT_H_INCLUDED
+#ifndef tt_h
+#define tt_h
 
 #include "misc.h"
 #include "types.h"
@@ -98,4 +98,5 @@ private:
 
 extern TranspositionTable TT;
 
-#endif // #ifndef TT_H_INCLUDED
+
+#endif /* tt_h */
